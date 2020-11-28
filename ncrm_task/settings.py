@@ -42,7 +42,10 @@ INSTALLED_APPS = [
     'board',
     # third party apps
     'rest_framework',
+    'rest_framework.authtoken',
 ]
+
+AUTH_USER_MODEL = 'user.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
