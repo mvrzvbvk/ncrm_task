@@ -20,24 +20,18 @@ class Board(TrackableDate):
 
 
 class Status(TrackableDate):
-    status = models.ForeignKey(Board, related_name="status", on_delete=models.CASCADE)
+    board = models.ForeignKey(Board, on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
-    priority = models.IntegerField(default=0)
+    priority = models.IntegerField(default=0, unique=True)
 
     def __str__(self):
         return self.name
 
 
 class Task(TrackableDate):
-    task = models.ManyToManyField(Status, through='CurrentStatusOfTask')
+    status = models.ForeignKey(Status, on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
     desc = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return self.name
-
-
-class CurrentStatusOfTask(models.Model):
-    status = models.ForeignKey(Status, on_delete=models.CASCADE)
-    task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    current_status = models.IntegerField()
