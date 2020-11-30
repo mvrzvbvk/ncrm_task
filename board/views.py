@@ -3,8 +3,12 @@ import json
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
 from rest_framework import generics, permissions
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import (
     HTTP_200_OK, HTTP_201_CREATED, HTTP_204_NO_CONTENT,
@@ -23,6 +27,8 @@ from permissions import IsManagerUser
 #Create task only for manager user
 #Update status of task only for basic user
 
+USER_BASIC = 0
+USER_MANAGER = 1
 
 class BoardList(generics.ListCreateAPIView):
     serializer_class = BoardSerializer
@@ -32,7 +38,7 @@ class BoardList(generics.ListCreateAPIView):
     def post(self, request):
         user = request.user
         name = request.data.get('name')
-        if user.user_type is user.USER_BASIC:
+        if user.user_type is USER_BASIC:
             return Response({"detail": "Permission denied!"}, status=HTTP_403_FORBIDDEN)
         with transaction.atomic():
             board = Board.objects.create(board_owner=user, name=name)
@@ -70,7 +76,7 @@ class StatusList(generics.ListCreateAPIView):
         name = request.data.get('name')
         priority = request.data.get('priority')
         board = get_object_or_404(Board, id=id)
-        if user.user_type is user.USER_BASIC:
+        if user.user_type is USER_BASIC:
             return Response({"detail": "Permission denied!"}, status=HTTP_403_FORBIDDEN)
         with transaction.atomic():
             st = Status.objects.create(board=board, name=name, priority=priority)
@@ -121,7 +127,7 @@ class TaskList(generics.ListCreateAPIView):
         username = request.data.get('username')
         assign_user = get_object_or_404(User, username=username)
         def_status = Status.objects.all().first()
-        if user.user_type is user.USER_BASIC:
+        if user.user_type is USER_BASIC:
             return Response({"detail": "Permission denied!"}, status=HTTP_403_FORBIDDEN)
         with transaction.atomic():
             task = Task.objects.create(status=def_status, name=name, desc=desc, assigned_to=assign_user )
@@ -149,4 +155,27 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
             return Response(serializer.data, status=HTTP_200_OK)
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
-        
+class ChangeStatusOfTask(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = TaskSerializer
+    #permission_classes = [permissions.IsAuthenticated]
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        return Task.objects.filter(id=self.kwargs.get('id'))
+
+    def patch(self, request, id,  *args, **kwargs):
+        user = request.user
+        task = get_object_or_404(Task, id=id)
+        status = request.data.get('status')
+        n_priority = Status.objects.get(id=status)
+        next_priority = n_priority.priority-1
+        if user.user_type is not USER_BASIC or user.id is not task.assigned_to.user.id:
+                return Response({"detail": "Permission denied!"}, status=HTTP_403_FORBIDDEN)
+        if task.status.priority is not next_priority:
+                return Response({"detail": "you must change the task status sequentially"}, status=HTTP_403_FORBIDDEN)
+        task.status = n_priority
+        task.save()
+        return Response({"message": "Updated task"}, status=HTTP_200_OK)
+    
+
+#or user.id is not task.assigned_to.user.id

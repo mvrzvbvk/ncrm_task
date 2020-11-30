@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .views import (
-    BoardList, BoardDetail, StatusList, StatusDetail, TaskList, TaskDetail
+    BoardList, BoardDetail, StatusList, StatusDetail, TaskList, TaskDetail, ChangeStatusOfTask
 )
 
 app_name = "board"
@@ -13,4 +13,5 @@ urlpatterns = [
     path('boards/<int:id>/status/<int:pk>', StatusDetail.as_view(), name='get-status'),
     path('tasks/', TaskList.as_view(), name='create-or-get-task'),
     path('tasks/<int:id>', TaskDetail.as_view(), name='get-task'),
+    path('tasks/<int:id>/change_status_of_task', ChangeStatusOfTask.as_view(), name='update-status-task'),
 ]
