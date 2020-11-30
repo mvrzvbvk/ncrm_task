@@ -69,7 +69,10 @@ class BoardDetail(generics.RetrieveUpdateDestroyAPIView):
 class StatusList(generics.ListCreateAPIView):
     serializer_class = StatusSerializer
     #permission_classes = [permissions.IsAuthenticated, IsManagerUser]
-    queryset = Status.objects.all()
+    #queryset = Status.objects.filter()
+
+    def get_queryset(self):
+        return Status.objects.filter(board=self.kwargs['id'])
 
     def post(self, request, id, status_id=None):
         user = request.user
@@ -89,7 +92,7 @@ class StatusDetail(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = 'pk'
 
     def get_queryset(self):
-        return Status.objects.filter(id=self.kwargs.get('pk'))
+        return Status.objects.filter(id=self.kwargs.get('pk'), board=self.kwargs.get('id'))
 
     def patch(self, request, pk, *args, **kwargs):
         user = request.user
@@ -169,7 +172,7 @@ class ChangeStatusOfTask(generics.RetrieveUpdateDestroyAPIView):
         status = request.data.get('status')
         n_priority = Status.objects.get(id=status)
         next_priority = n_priority.priority-1
-        if user.user_type is not USER_BASIC or user.id is not task.assigned_to.user.id:
+        if user.user_type is not USER_BASIC or user.id is not task.assigned_to.id:
                 return Response({"detail": "Permission denied!"}, status=HTTP_403_FORBIDDEN)
         if task.status.priority is not next_priority:
                 return Response({"detail": "you must change the task status sequentially"}, status=HTTP_403_FORBIDDEN)
