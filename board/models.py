@@ -12,8 +12,9 @@ class TrackableDate(models.Model):
 
 
 class Board(TrackableDate):
-    board_owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    board_owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owner')
     name = models.CharField(max_length=200)
+    members = models.ManyToManyField(User, related_name='member')
 
     def __str__(self):
         return self.name
@@ -32,6 +33,7 @@ class Task(TrackableDate):
     status = models.ForeignKey(Status, on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
     desc = models.TextField(null=True, blank=True)
+    assigned_to = models.ForeignKey(User, blank=True, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name
