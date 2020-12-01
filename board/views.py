@@ -20,7 +20,7 @@ from rest_framework.generics import get_object_or_404
 from user.models import User
 from .models import Board, Status, Task
 from .serializers import BoardSerializer, StatusSerializer, TaskSerializer
-from permissions import IsManagerUser
+from permissions import IsManagerUser, IsOwnerOrReadOnly
 #TODO
 #Create board only for manager user
 #Create,update,delete status only for manager user
@@ -47,12 +47,13 @@ class BoardList(generics.ListCreateAPIView):
 
 class BoardDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = BoardSerializer
-    #permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
     lookup_field = 'id'
     
-    def patch(self, request, id, *args, **kwargs):
+    
+    def patch(self, request, *args, **kwargs):
         user = request.user
-        get_board = get_object_or_404(Board, id=id)
+        get_board = get_object_or_404(Board, id=self.kwargs.get('id'))
         owner_id = get_board.board.board_owner.id
         if user.id is not owner_id:
             return Response({"detail": "Permission denied!"}, status=HTTP_403_FORBIDDEN)
@@ -69,7 +70,6 @@ class BoardDetail(generics.RetrieveUpdateDestroyAPIView):
 class StatusList(generics.ListCreateAPIView):
     serializer_class = StatusSerializer
     #permission_classes = [permissions.IsAuthenticated, IsManagerUser]
-    #queryset = Status.objects.filter()
 
     def get_queryset(self):
         return Status.objects.filter(board=self.kwargs['id'])
@@ -88,18 +88,14 @@ class StatusList(generics.ListCreateAPIView):
 
 class StatusDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = StatusSerializer
-    #permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
     lookup_field = 'pk'
 
     def get_queryset(self):
         return Status.objects.filter(id=self.kwargs.get('pk'), board=self.kwargs.get('id'))
 
     def patch(self, request, pk, *args, **kwargs):
-        user = request.user
         status = get_object_or_404(Status, pk=pk)
-        owner_id = status.board.board_owner.id
-        if user.id is not owner_id:
-            return Response({"detail": "Permission denied!"}, status=HTTP_403_FORBIDDEN)
         serializer = self.serializer_class(status, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -139,7 +135,7 @@ class TaskList(generics.ListCreateAPIView):
 
 class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TaskSerializer
-    #permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
     lookup_field = 'id'
 
     def get_queryset(self):
@@ -147,11 +143,7 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
 
 
     def patch(self, request, id, *args, **kwargs):
-        user = request.user
         task = get_object_or_404(Task, id=id)
-        owner_id = task.status.board.board_owner.id
-        if user.id is not owner_id:
-            return Response({"detail": "Permission denied!"}, status=HTTP_403_FORBIDDEN)
         serializer = self.serializer_class(task, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -160,15 +152,15 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
 
 class ChangeStatusOfTask(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TaskSerializer
-    #permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
     lookup_field = 'id'
 
     def get_queryset(self):
         return Task.objects.filter(id=self.kwargs.get('id'))
 
-    def patch(self, request, id,  *args, **kwargs):
+    def patch(self, request, *args, **kwargs):
         user = request.user
-        task = get_object_or_404(Task, id=id)
+        task = get_object_or_404(Task, id=self.kwargs.get('id'))
         status = request.data.get('status')
         n_priority = Status.objects.get(id=status)
         next_priority = n_priority.priority-1
@@ -179,6 +171,3 @@ class ChangeStatusOfTask(generics.RetrieveUpdateDestroyAPIView):
         task.status = n_priority
         task.save()
         return Response({"message": "Updated task"}, status=HTTP_200_OK)
-    
-
-#or user.id is not task.assigned_to.user.id
